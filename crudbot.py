@@ -420,66 +420,6 @@ def handle_instruction(instruction, df, file_path):
         st.error(f"Error handling instruction: {e}")
         return f"Error handling instruction: {e}"
 
-
-# Extend handle_instruction to support advanced delete queries
-# def handle_instruction(instruction, df, file_path):
-#     try:
-#         # Handle "delete" queries
-#         if "delete" in instruction.lower():
-#             # Match "Delete records where column operator value"
-#             condition_match = re.search(
-#                 r"delete records where\s+(\w+)\s+(greater than|less than|equals|is|contains)\s+([\w\s\d.]+)",
-#                 instruction,
-#                 re.IGNORECASE,
-#             )
-#             if not condition_match:
-#                 return "Could not parse the delete instruction. Please follow format `delete records where [your condition values]` or specify the condition using 'greater than', 'less than', 'equals', or 'contains'."
-
-#             col = condition_match.group(1).strip()
-#             operator = condition_match.group(2).lower()
-#             value = condition_match.group(3).strip()
-
-#             # Ensure column exists
-#             if col not in df.columns:
-#                 return f"Column '{col}' not found in the DataFrame."
-
-#             # Identify column data type and condition
-#             if operator in ["greater than", "less than", "equals", "equal to"]:
-#                 # Check if column can be coerced to numeric
-#                 if pd.api.types.is_numeric_dtype(df[col]) or df[col].apply(lambda x: str(x).replace('.', '', 1).isdigit()).all():
-#                     df[col] = pd.to_numeric(df[col], errors="coerce")
-#                     value = float(value) if value.replace(".", "", 1).isdigit() else value
-
-#                     # Create numeric condition
-#                     if operator == "greater than":
-#                         condition = df[col] > value
-#                     elif operator == "less than":
-#                         condition = df[col] < value
-#                     else:  # "equals" or "equal to"
-#                         condition = df[col] == value
-#                 else:
-#                     return f"Column '{col}' does not support numerical operations."
-#             elif operator in ["contains", "is"]:
-#                 # Ensure the column is string-compatible
-#                 if not pd.api.types.is_string_dtype(df[col]):
-#                     df[col] = df[col].astype(str)
-#                 condition = df[col].str.contains(value, case=False, na=False)
-#             else:
-#                 return "Unsupported operator. Use 'greater than', 'less than', 'equals', or 'contains'."
-
-#             # Perform deletion
-#             result = delete_record(condition, df, file_path)
-#             return result
-
-#         # Handle other queries (e.g., add, update, find, etc.)
-#         # Add your existing logic here...
-
-#         return "Instruction not recognized."
-#     except Exception as e:
-#         st.error(f"Error handling instruction: {e}")
-#         return f"Error handling instruction: {e}"
-
-
 def start_periodic_task(interval):
     """Starts the anomaly check task in a separate thread."""
     periodic_thread = threading.Thread(target=run_periodically, args=(interval,))
@@ -490,37 +430,21 @@ def start_periodic_task(interval):
 
 # Main function for the Streamlit app
 def main():
-    st.title("ChatBot")
-    st.write("For prompts be sure to specify the column name(s) you want to work on as they appear on the sheet alongside the operation like `add, delete, update, date etc`")
-    st.write("Forn date prompts, specified dates should be `YYYY-MM-DD` ")
-    # Option to upload a file or choose from available CSVs in a folder
-    uploaded_file = st.file_uploader("Upload a CSV file", type="csv")
-    file_path = 'uploaded_file.csv'  # Default path for uploaded CSV
+    st.write("Select a CSV file to work on:")    
 
-    if uploaded_file is not None:
-        with open(file_path, "wb") as f:
-            f.write(uploaded_file.getbuffer())
+    # Path to the folder containing pre-existing CSV files
+    current_wd = os.getcwd()
+    sheet_folder_path = f"{current_wd}/files/sheets"
+
+    csv_files = [f for f in os.listdir(sheet_folder_path) if f.endswith('.csv')]
+    csv_files.sort()
+    
+    selected_file = st.selectbox("Select a CSV file:", csv_files)
+    if selected_file:
+        file_path = f'{sheet_folder_path}/{selected_file}'
         df = load_csv(file_path)
-    else:
-        st.write("OR")
-        st.write("Select a CSV file from the folder:")    
-
-        # Path to the folder containing pre-existing CSV files
-        current_wd = os.getcwd()
-        sheet_folder_path = f"{current_wd}/files/sheets"
-
-        csv_files = [f for f in os.listdir(sheet_folder_path) if f.endswith('.csv')]
-        csv_files.sort()
-        
-        selected_file = st.selectbox("Select a CSV file:", csv_files)
-        if selected_file:
-            file_path = f'{sheet_folder_path}/{selected_file}'
-            df = load_csv(file_path)
 
     if df is not None:
-        st.write("Data preview:")
-        st.write(df.head())
-
         # Accept user input for instructions
         instruction = st.text_input("Enter your query:")
 
@@ -531,11 +455,7 @@ def main():
                 st.write(result)
             else:
                 st.write(result)
-    
-    st.write("---")
-    st.write("Powered by Instanvi -- Delmas-code")
 
 if __name__ == "__main__":
-    # start_periodic_task(3600)  # Runs every 1 hour
-    start_periodic_task(10800)
+    start_periodic_task(3600)  # Runs every 1 hour
     main()

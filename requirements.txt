@@ -47,8 +47,8 @@ tenacity==9.0.0
 tokenizers==0.20.3
 toml==0.10.2
 torch==2.5.1 -f https://download.pytorch.org/whl/torch_stable.html
-torchaudio==2.5.1+cpu
-torchvision==0.20.1+cpu
+torchaudio==2.5.1 -f https://download.pytorch.org/whl/torch_stable.html
+torchvision==0.20.1 -f https://download.pytorch.org/whl/torch_stable.html
 tornado==6.4.2
 tqdm==4.67.1
 transformers==4.46.3

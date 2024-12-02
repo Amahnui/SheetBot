@@ -84,8 +84,8 @@ def delete_record(condition, df, file_path):
 def handle_instruction(instruction, df, file_path):
     try:
         # Debug: Log initial DataFrame state and instruction
-        st.write("Initial DataFrame preview:")
-        st.write(df.head())
+        # st.write("Initial DataFrame preview:")
+        # st.write(df.head())
         st.write("Instruction received:", instruction)
 
         # Handle "add" queries
@@ -410,8 +410,8 @@ def handle_instruction(instruction, df, file_path):
             return "Condition type not supported for filtering. Please use 'greater than', 'less than', or 'equals'."
 
         # Debug: Log filtered DataFrame state
-        st.write("Filtered DataFrame preview:")
-        st.write(filtered_df.head())
+        # st.write("Filtered DataFrame preview:")
+        # st.write(filtered_df.head())
         return filtered_df
     
         # return "Instruction not recognized."

@@ -514,7 +514,7 @@ def main():
         
         selected_file = st.selectbox("Select a CSV file:", csv_files)
         if selected_file:
-            file_path = f'{sheet_folder_path}\{selected_file}'
+            file_path = f'{sheet_folder_path}/{selected_file}'
             df = load_csv(file_path)
 
     if df is not None:

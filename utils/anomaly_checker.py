@@ -124,12 +124,13 @@ def check_anomalies_and_notify():
 
     # Send email if anomalies detected
     if summary:
+        receiver_email = os.environ["RECEIVER_EMAIL"]
         report = "Summary of Anomalies Detected:\n\n" + "\n".join(summary)
         print(report)  # For debugging
         send_email_alert_with_attachment(
             "Anomaly Report Summary",
             report,
-            "delmaschris7@gmail.com",
+            receiver_email,
             attachments
         )
     else:

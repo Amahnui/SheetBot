@@ -536,5 +536,6 @@ def main():
     st.write("Powered by Instanvi -- Delmas-code")
 
 if __name__ == "__main__":
-    start_periodic_task(3600)  # Runs every 1 hour
+    # start_periodic_task(3600)  # Runs every 1 hour
+    start_periodic_task(10800)
     main()

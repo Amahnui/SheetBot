@@ -46,7 +46,7 @@ sympy==1.13.1
 tenacity==9.0.0
 tokenizers==0.20.3
 toml==0.10.2
-torch==2.5.1+cpu
+torch==2.5.1+cpu -f https://download.pytorch.org/whl/torch_stable.html
 torchaudio==2.5.1+cpu
 torchvision==0.20.1+cpu
 tornado==6.4.2

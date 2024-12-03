@@ -86,7 +86,8 @@ def handle_instruction(instruction, df, file_path):
         # Debug: Log initial DataFrame state and instruction
         # st.write("Initial DataFrame preview:")
         # st.write(df.head())
-        st.write("Instruction received:", instruction)
+
+        # st.write("Instruction received:", instruction)
 
         # Handle "add" queries
         if "add" in instruction.lower():
@@ -365,7 +366,7 @@ def handle_instruction(instruction, df, file_path):
                 return "Condition type not supported for counting. Please use 'greater than', 'less than', or 'equals'."
 
             # Debug: Log count
-            st.write(f"Count for condition '{condition_type} {condition_value}':", count)
+            # st.write(f"Count for condition '{condition_type} {condition_value}':", count)
             return f"Number of records where {column} {condition_type} '{condition_value}': {count}"
 
 
@@ -429,33 +430,153 @@ def start_periodic_task(interval):
 
 
 # Main function for the Streamlit app
-def main():
-    st.write("Select a CSV file to work on:")    
 
-    # Path to the folder containing pre-existing CSV files
+def main():
+    # Set up page layout
+    st.set_page_config(page_title="Chatbot", layout="wide")
+
+        # .chat-container {
+        #     display: flex;
+        #     flex-direction: column;
+        #     height: 70vh;
+        #     overflow-y: auto;
+        #     background-color: #f7f7f7;
+        #     padding: 10px;
+        #     border: 1px solid #ddd;
+        #     border-radius: 8px;
+        # }
+
+        #  .stForm {
+        #     position: fixed;
+        #     bottom: 7%;
+        #     left: 29%;
+        #     width:69%;
+        #     border: 0;
+        #     z-index: 1000;
+        # }
+    st.markdown(
+        """
+        <style>
+
+        .chat-message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 8px;
+            max-width: 60%;
+        }
+        .user-message {
+            //align-self: flex-start;
+            background-color: #0084ff;
+            color: white;
+            //margin-left: 300px;
+            margin-left: 40%;
+        }
+        .bot-message {
+            //align-self: flex-end;
+            background-color: #e4e6eb;
+            margin-right: 10px;
+        }
+
+
+        .stForm {
+            position: fixed;
+            bottom: 5%; /* Adjusted to make it more balanced */
+            left: 60%; /* Center the form */
+            transform: translateX(-50%); /* Center alignment */
+            width: 70%; /* Responsive width */
+            max-width: 800px; /* Optional: limit the max width */
+            border: 0;
+            z-index: 1000; /* Make sure it appears on top */
+            background-color: #f7f7f7;
+            border-radius: 8px; /* Optional: rounded corners */
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); /* Optional: add shadow */
+        }
+
+        @media screen and (max-width: 1024px) {
+            .stForm {
+                width: 90%; /* Adjust width for tablets and smaller desktop views */
+            }
+        }
+
+        @media screen and (max-width: 768px) {
+            .stForm {
+                width: 100%; /* Full width for mobile devices */
+                left: 0; /* Align to the left side */
+                transform: translateX(0); /* No centering */
+            }
+        }
+
+        
+        input[class]{
+            font-size:80%;
+            color: white;
+            background-color: #deddd9;
+            
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # Sidebar for file selection
     current_wd = os.getcwd()
     sheet_folder_path = f"{current_wd}/files/sheets"
-
     csv_files = [f for f in os.listdir(sheet_folder_path) if f.endswith('.csv')]
     csv_files.sort()
-    
-    selected_file = st.selectbox("Select a CSV file:", csv_files)
+
+    st.sidebar.header("File Selection")
+    selected_file = st.sidebar.selectbox("Select a CSV file:", csv_files)
+    df = None
+    file_path = None
     if selected_file:
         file_path = f'{sheet_folder_path}/{selected_file}'
         df = load_csv(file_path)
 
-    if df is not None:
-        # Accept user input for instructions
-        instruction = st.text_input("Enter your query:")
+    # Initialize chat history
+    if "messages" not in st.session_state:
+        st.session_state["messages"] = []
 
-        if st.button("Execute Query"):
-            result = handle_instruction(instruction, df, file_path)
+    # Display chat history
+    with st.container(border=True):
+        st.markdown('<div class="chat-container">', unsafe_allow_html=True)
+        for msg in st.session_state["messages"]:
+            if msg["type"] == "text":
+                sender_class = "bot-message" if msg["sender"] == "bot" else "user-message"
+                st.markdown(
+                    f'<div class="chat-message {sender_class}">{msg["content"]}</div>',
+                    unsafe_allow_html=True,
+                )
+            elif msg["type"] == "dataframe":
+                st.write("### Response:")
+                st.dataframe(msg["content"], use_container_width=True)
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # Input box at the bottom
+    with st.form("chat_input_form", clear_on_submit=True):
+        user_input = st.text_input("Type your query:", "", key="chat_input", label_visibility="hidden", placeholder="Type your query")
+        submitted = st.form_submit_button("Send")
+
+    # Handle user input and bot response
+    if submitted and user_input.strip():
+        # Add user message to chat history
+        st.session_state["messages"].append({"sender": "user", "type": "text", "content": user_input})
+
+        if df is None:
+            bot_response = "Please select a file before querying."
+            st.session_state["messages"].append({"sender": "bot", "type": "text", "content": bot_response})
+        else:
+            # Call query handling logic
+            result = handle_instruction(user_input, df, file_path)
             if isinstance(result, pd.DataFrame):
-                st.write("### Result:")
-                st.write(result)
+                st.session_state["messages"].append({"sender": "bot", "type": "dataframe", "content": result})
             else:
-                st.write(result)
+                st.session_state["messages"].append({"sender": "bot", "type": "text", "content": result})
+
+        # Refresh to display the new message
+        st.rerun()
+
 
 if __name__ == "__main__":
-    start_periodic_task(3600)  # Runs every 1 hour
+    # start_periodic_task(3600)  # Runs every 1 hour
     main()

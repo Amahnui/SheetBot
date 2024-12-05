@@ -84,16 +84,46 @@ def delete_record(condition, df, file_path):
 # Function to handle various user queries
 def handle_instruction(instruction, df, file_path):
     try:
-        # Debug: Log initial DataFrame state and instruction
-        # st.write("Initial DataFrame preview:")
-        # st.write(df.head())
 
-        # st.write("Instruction received:", instruction)
+        date_keywords = {
+            "after": ["after", "après"],
+            "before": ["before", "avant"],
+            "on": ["on", "le"],
+        }
+
+        keywords = {
+            "add": ["add", "ajouter"],
+            "update": ["update", "edit", "set", "modifier", "mettre"],
+            "delete": ["delete", "remove", "supprimer", "retirer"],
+            "find": ["find", "trouver", "rechercher", "chercher", "cherche"],
+            "where": ["where", "où", "ou"],
+            "is": ["is", "est"],
+            "greater than": ["greater than", "supérieur à", "plus que"],
+            "less than": ["less than", "inférieur à", "moins que"],
+            "equals": ["equals", "égal à"],
+            "contains": ["contains", "contient", "à"],
+            "is": ["is", "est"],
+            "of": ["of", "de"],
+            "before": ["before", "avant"],
+            "after": ["after", "après"]
+        }
+        instruction = instruction.lower()
+        if any(keyword in instruction for keyword in keywords["add"]):
+            # pattern = re.findall(r"(\w+)\s*(?:is|est)\s*([\w\s]+)", instruction, re.IGNORECASE)
+            pattern = re.findall(r"(\w+)\s*(is|est)\s*([\w\s]+)", instruction, re.IGNORECASE)
+            if not pattern:
+                return ("Could not parse the addition instruction. "
+                        "Please follow the format: 'Add a record where column1 is value1, column2 is value2, ...'")
+        # Process addition logic here...
+
 
         # Handle "add" queries
-        if "add" in instruction.lower():
+        # if "add" in instruction.lower():
+        if any(keyword in instruction for keyword in keywords["add"]):
             # Assuming a simple format: "Add a record where column1 is value1, column2 is value2, ..."
-            pattern = re.findall(r"(\w+)\s*is\s*([\w\s]+)", instruction, re.IGNORECASE)
+            # pattern = re.findall(r"(\w+)\s*is\s*([\w\s]+)", instruction, re.IGNORECASE)
+            # pattern = re.findall(r"(\w+)\s*(?:is|est)\s*([\w\s]+)", instruction, re.IGNORECASE)
+            pattern = re.findall(r"(\w+)\s*(is|est)\s*([\w\s]+)", instruction, re.IGNORECASE)
             if not pattern:
                 return "Could not parse the addition instruction. Please follow the format: 'Add a record where column1 is value1, column2 is value2, ...'"
 
@@ -110,21 +140,26 @@ def handle_instruction(instruction, df, file_path):
             return result
 
         # Handle "update" queries
-        if ("update" in instruction.lower()) or ("edit" in instruction.lower()) or ("set" in instruction.lower()):
-        # if "update" in instruction.lower():
-            # Match "Update column to value where condition"
+        # if ("update" in instruction.lower()) or ("edit" in instruction.lower()) or ("set" in instruction.lower()):
+        #     # Match "Update column to value where condition"
+        #     condition_match = re.search(
+        #         r"update\s+(\w+)\s+to\s+([\w\s\d.]+)\s+where\s+(.+)",
+        #         instruction,
+        #         re.IGNORECASE,
+        #     )
+        if any(keyword in instruction for keyword in keywords["update"]):
             condition_match = re.search(
-                r"update\s+(\w+)\s+to\s+([\w\s\d.]+)\s+where\s+(.+)",
+                # r"(?:update|modifier)\s+(\w+)\s+(?:to|à)\s+([\w\s\d.]+)\s+(?:where|où)\s+(.+)",
+                r"(update|modifier)\s+(\w+)\s+(to|à)\s+([\w\s\d.]+)\s+(where|où)\s+(.+)",
                 instruction,
                 re.IGNORECASE,
             )
+
             if not condition_match:
                 return "Could not parse the update instruction. Please follow the format: 'Update column to value where condition'."
-            print(condition_match.groups())
             column_to_update = condition_match.group(1).strip()
             new_value = condition_match.group(2).strip()
             condition = condition_match.group(3).strip()
-            print(condition)
             print(condition_match.groups())
             # Ensure column exists
             if column_to_update not in df.columns:
@@ -197,44 +232,50 @@ def handle_instruction(instruction, df, file_path):
             return df
 
         # Handle "delete" queries
-        if (("delete" in instruction.lower())) or ("remove" in instruction.lower()):
-            # Match "Delete records where column operator value"
+        # if (("delete" in instruction.lower())) or ("remove" in instruction.lower()):
+        #     # Match "Delete records where column operator value"
+        #     condition_match = re.search(
+        #         r"(\w+)\s+(greater than|less than|equals|is|contains)\s+([\w\s\d.]+)",
+        #         # r"delete data where\s+(\w+)\s+(greater than|less than|equals|is|contains)\s+([\w\s\d.]+)",
+        #         # r"(delete|remove)\s+[\w\s]+\s+where\s+(greater than|less than|equals|is|contains|has)\s+([\w\s\d.]+)",
+        #         instruction,
+        #         re.IGNORECASE,
+        #     )
+        if any(keyword in instruction for keyword in keywords["delete"]):
             condition_match = re.search(
-                r"(\w+)\s+(greater than|less than|equals|is|contains)\s+([\w\s\d.]+)",
-                # r"delete data where\s+(\w+)\s+(greater than|less than|equals|is|contains)\s+([\w\s\d.]+)",
-                # r"(delete|remove)\s+[\w\s]+\s+where\s+(greater than|less than|equals|is|contains|has)\s+([\w\s\d.]+)",
+                # r"(\w+)\s+(?:greater than|supérieur à|plus que|moin que|less than|inférieur à|equals|égal à|is|est|contains|contient|à)\s+([\w\s\d.]+)",
+                r"(\w+)\s+(greater than|supérieur à|plus que|moin que|less than|inférieur à|equals|égal à|is|est|contains|contient|à)\s+([\w\s\d.]+)",
                 instruction,
                 re.IGNORECASE,
             )
-            print(condition_match.groups())
             if not condition_match:
                 return "Could not parse the delete instruction. Please follow format `delete(or 'remove') records where [your condition values]` or specify the condition using 'greater than', 'less than', 'equals', or 'contains'."
             
             col = condition_match.group(1).strip()
             operator = condition_match.group(2).lower()
             value = condition_match.group(3).strip()
-            # print(condition_match.groups())
+            print(condition_match.groups())
             # Ensure column exists
             if col not in df.columns:
                 return f"Column '{col}' not found in the DataFrame."
 
             # Identify column data type and condition
-            if operator in ["greater than", "less than", "equals", "equal to"]:
+            if operator in ["greater than", "supérieur à", "plus que", "less than", "inférieur à", "moins que", "equals", "equals", "égal à"]:
                 # Check if column can be coerced to numeric
                 if pd.api.types.is_numeric_dtype(df[col]) or df[col].apply(lambda x: str(x).replace('.', '', 1).isdigit()).all():
                     df[col] = pd.to_numeric(df[col], errors="coerce")
                     value = float(value) if value.replace(".", "", 1).isdigit() else value
 
                     # Create numeric condition
-                    if operator == "greater than":
+                    if operator in ["greater than", "supérieur à", "plus que"]:
                         condition = df[col] > value
-                    elif operator == "less than":
+                    elif operator in ["less than", "inférieur à", "moins que"]:
                         condition = df[col] < value
                     else:  # "equals" or "equal to"
                         condition = df[col] == value
                 else:
                     return f"Column '{col}' does not support numerical operations."
-            elif operator in ["contains", "has"]:
+            elif operator in ["contains","has" "contient", "à"]:
                 # Ensure the column is string-compatible
                 if not pd.api.types.is_string_dtype(df[col]):
                     df[col] = df[col].astype(str)
@@ -256,9 +297,11 @@ def handle_instruction(instruction, df, file_path):
         # (Add the existing code from your previous `handle_instruction` function here.)
 
         # Handle "how many" or "find all" queries involving dates
-        if ("how many" in instruction.lower() or "find" in instruction.lower()) and "date" in instruction.lower():
+        if (("how many" in instruction or "combien" in instruction) or (instruction in ["find", "trouver", "rechercher", "chercher", "cherche"])) and "date" in instruction.lower():
             # Identify date-related columns
-            date_columns = [col for col in df.columns if "date" in col.lower()]
+            # date_columns = [col for col in df.columns if "date" in col.lower()]
+            date_columns = [col for col in df.columns if any(keyword in col.lower() for keyword in ["date", "la date"])]
+
             if not date_columns:
                 return "No date columns found in the dataset."
 
@@ -266,25 +309,25 @@ def handle_instruction(instruction, df, file_path):
             df[date_column] = pd.to_datetime(df[date_column], errors='coerce')
 
             # Check for keywords like "today" or "yesterday"
-            if "today" in instruction.lower():
+            if "today" in instruction or "aujourd'hui" in instruction:
                 today = datetime.now().date()
                 matching_records = df[df[date_column].dt.date == today]
                 count = matching_records.shape[0]
 
                 # Display table or return count based on query type
-                if "find" in instruction.lower():
+                if instruction in ["find", "trouver", "rechercher", "chercher", "cherche"]:
                     return matching_records
                     # st.table(matching_records)
                     # return f"Displayed all records dated today. Total records: {count}."
                 return f"Number of records dated today: {count}"
 
-            if "yesterday" in instruction.lower():
+            if "yesterday" in instruction or "hier" in instruction:
                 yesterday = (datetime.now() - timedelta(days=1)).date()
                 matching_records = df[df[date_column].dt.date == yesterday]
                 count = matching_records.shape[0]
 
                 # Display table or return count based on query type
-                if "find" in instruction.lower():
+                if "find" in instruction or "trouver" in instruction:
                     return matching_records
                     # st.table(matching_records)
                     # return f"Displayed all records dated yesterday. Total records: {count}."
@@ -298,23 +341,28 @@ def handle_instruction(instruction, df, file_path):
                 count = matching_records.shape[0]
 
                 # Display table or return count based on query type
-                if "find" in instruction.lower():
+                if instruction in ["find", "trouver", "rechercher", "chercher", "cherche"]:
                     # st.table(matching_records)
                     return matching_records
                     # return f"Displayed all records dated {specific_date}. Total records: {count}."
                 return f"Number of records with a date of {specific_date}: {count}"
 
             # Handle date-based conditions like "after", "before", or "on"
-            condition_match = re.search(r"(after|before|on)[\s]*(\d{4}-\d{2}-\d{2})", instruction, re.IGNORECASE)
+            condition_match = re.search(
+                # r"(?:after|après|before|avant|on|le)[\s]*(\d{4}-\d{2}-\d{2})",
+                r"(after|après|before|avant|on|le)[\s]*(\d{4}-\d{2}-\d{2})",
+                instruction,
+                re.IGNORECASE,
+            )
             if condition_match:
                 condition_type = condition_match.group(1).lower()
                 condition_value = pd.to_datetime(condition_match.group(2)).date()
 
-                if condition_type == "after":
+                if condition_type in date_keywords["after"]:
                     matching_records = df[df[date_column].dt.date > condition_value]
-                elif condition_type == "before":
+                elif condition_type in date_keywords["before"]:
                     matching_records = df[df[date_column].dt.date < condition_value]
-                elif condition_type == "on":
+                elif condition_type in date_keywords["on"]:
                     matching_records = df[df[date_column].dt.date == condition_value]
                 else:
                     return "Condition type not supported for dates. Use 'after', 'before', or 'on'."
@@ -322,7 +370,7 @@ def handle_instruction(instruction, df, file_path):
                 count = matching_records.shape[0]
 
                 # Display table or return count based on query type
-                if "find" in instruction.lower():
+                if instruction in ["find", "trouver", "rechercher", "chercher", "cherche"]:
                     return matching_records
                     # st.table(matching_records)
                     # return f"Displayed all records where {date_column} is {condition_type} {condition_value}. Total records: {count}."
@@ -333,17 +381,22 @@ def handle_instruction(instruction, df, file_path):
 
 
         # Handle general "how many" queries (runs only if no date-specific query matched)
-        elif "how many" in instruction.lower():
+        elif "how many" in instruction or "combien" in instruction:
             # Identify the column and value
             column_names = df.columns.tolist()
-            found_columns = [col for col in column_names if col.lower() in instruction.lower()]
+            found_columns = [col for col in column_names if col.lower() in instruction]
 
             if not found_columns:
                 return "No matching column found. Please try a different instruction."
 
             # Assume the first found column is the one user intended
             column = found_columns[0]
-            condition_match = re.search(r"(greater than|less than|equals|is|of|before|after)[\s]*([\w\s]+)", instruction, re.IGNORECASE)
+            condition_match = re.search(
+                # r"(?:greater than|supérieur à|plus que|moin que|less than|inférieur à|equals|égal à|is|est|of|de|before|avant|after|après)[\s]*([\w\s]+)",
+                r"(greater than|supérieur à|plus que|moin que|less than|inférieur à|equals|égal à|is|est|of|de|before|avant|after|après)[\s]*([\w\s]+)",
+                instruction,
+                re.IGNORECASE,
+            )
 
             if not condition_match:
                 return "Could not understand the condition. Please use keywords like 'greater than', 'less than', 'equals', etc."
@@ -362,11 +415,11 @@ def handle_instruction(instruction, df, file_path):
                 df[column] = pd.to_numeric(df[column], errors='coerce')
 
             # Count records based on the condition
-            if condition_type in ["greater than", "after"]:
+            if condition_type in keywords["greater than"] + keywords["after"]:
                 count = df[df[column] > condition_value].shape[0]
-            elif condition_type in ["less than", "before"]:
+            elif condition_type in keywords["less than"] + keywords["before"]:
                 count = df[df[column] < condition_value].shape[0]
-            elif condition_type in ["equals", "is", "of"]:
+            elif condition_type in keywords["equals"] + keywords["is"]:
                 if pd.api.types.is_numeric_dtype(df[column]):
                     count = df[df[column] == condition_value].shape[0]
                 else:
@@ -381,15 +434,24 @@ def handle_instruction(instruction, df, file_path):
 
         # Handle queries to display filtered results
         column_names = df.columns.tolist()
-        found_columns = [col for col in column_names if col.lower() in instruction.lower()]
-
+        # print(column_names)
+        found_columns = [col for col in column_names if col.lower() in instruction]
         if not found_columns:
             return "No matching column found. Please try a different instruction."
 
         # Assume the first found column is the one user intended
         column = found_columns[0]
-        condition_match = re.search(r"(greater than|less than|equals|is|before|after)[\s]*([\w\s]+)", instruction, re.IGNORECASE)
-
+        # condition_match = re.search(
+        #     r"(?:greater than|supérieur à|plus que|moin que|less than|inférieur à|equals|égal à|is|est|before|avant|after|après)[\s]*([\w\s]+)",
+        #     instruction,
+        #     re.IGNORECASE,
+        # )
+        condition_match = re.search(
+            r"(greater than|supérieur à|plus que|moin que|less than|inférieur à|equals|égal à|is|est|before|avant|after|après)[\s]*([\w\s]+)",
+            instruction,
+            re.IGNORECASE,
+        )
+        print(condition_match.groups())
         if not condition_match:
             return "Could not understand the condition. Please use keywords like 'greater than', 'less than', 'equals', 'is', 'before', 'after'."
 
@@ -407,11 +469,11 @@ def handle_instruction(instruction, df, file_path):
             df[column] = pd.to_numeric(df[column], errors='coerce')
 
         # Filter records based on the condition
-        if condition_type in ["greater than", "after"]:
+        if condition_type in keywords["greater than"] + keywords["after"]:
             filtered_df = df[df[column] > condition_value]
-        elif condition_type in ["less than", "before"]:
+        elif condition_type in keywords["less than"] + keywords["before"]:
             filtered_df = df[df[column] < condition_value]
-        elif condition_type in ["equals", "is"]:
+        elif condition_type in keywords["equals"] + keywords["is"]:
             if pd.api.types.is_numeric_dtype(df[column]):
                 filtered_df = df[df[column] == condition_value]
             else:

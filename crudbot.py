@@ -51,7 +51,7 @@ def add_record(new_data, df, file_path):
         # Save back to the file
         df.to_csv(file_path, index=False)
         # return "Record added successfully."
-        return df
+        return new_row
     except Exception as e:
         return f"Error adding record: {e}"
 
@@ -73,8 +73,9 @@ def update_record(condition, update_values, df, file_path):
 def delete_record(condition, df, file_path):
     try:
         df = df[~condition]  # Filter out rows that match the condition
+        # deleted_df = df[condition]
         save_csv(df, file_path, "delete")
-        return df
+        return "Deleted Successfully"
     except Exception as e:
         st.error(f"Error deleting records: {e}")
         return "Error deleting records."
@@ -105,6 +106,7 @@ def handle_instruction(instruction, df, file_path):
                 return "No valid columns found for the new record."
 
             result = add_record(new_data, df, file_path)
+            st.success("Record Added successfully.")
             return result
 
         # Handle "update" queries
@@ -112,17 +114,17 @@ def handle_instruction(instruction, df, file_path):
         # if "update" in instruction.lower():
             # Match "Update column to value where condition"
             condition_match = re.search(
-                r"update|edit|set\s+(\w+)\s+to\s+([\w\s\d.]+)\s+where\s+(.+)",
+                r"update\s+(\w+)\s+to\s+([\w\s\d.]+)\s+where\s+(.+)",
                 instruction,
                 re.IGNORECASE,
             )
             if not condition_match:
                 return "Could not parse the update instruction. Please follow the format: 'Update column to value where condition'."
-
+            print(condition_match.groups())
             column_to_update = condition_match.group(1).strip()
             new_value = condition_match.group(2).strip()
             condition = condition_match.group(3).strip()
-
+            print(condition)
             print(condition_match.groups())
             # Ensure column exists
             if column_to_update not in df.columns:
@@ -198,14 +200,16 @@ def handle_instruction(instruction, df, file_path):
         if (("delete" in instruction.lower())) or ("remove" in instruction.lower()):
             # Match "Delete records where column operator value"
             condition_match = re.search(
-                # r"delete records where\s+(\w+)\s+(greater than|less than|equals|equal to|is|contains)\s+([\w\s\d.]+)",
-                r"delete records where|remove records where\s+(\w+)\s+(greater than|less than|equals|is|contains)\s+([\w\s\d.]+)",
+                r"(\w+)\s+(greater than|less than|equals|is|contains)\s+([\w\s\d.]+)",
+                # r"delete data where\s+(\w+)\s+(greater than|less than|equals|is|contains)\s+([\w\s\d.]+)",
+                # r"(delete|remove)\s+[\w\s]+\s+where\s+(greater than|less than|equals|is|contains|has)\s+([\w\s\d.]+)",
                 instruction,
                 re.IGNORECASE,
             )
+            print(condition_match.groups())
             if not condition_match:
                 return "Could not parse the delete instruction. Please follow format `delete(or 'remove') records where [your condition values]` or specify the condition using 'greater than', 'less than', 'equals', or 'contains'."
-
+            
             col = condition_match.group(1).strip()
             operator = condition_match.group(2).lower()
             value = condition_match.group(3).strip()
@@ -230,16 +234,21 @@ def handle_instruction(instruction, df, file_path):
                         condition = df[col] == value
                 else:
                     return f"Column '{col}' does not support numerical operations."
-            elif operator in ["contains", "is"]:
+            elif operator in ["contains", "has"]:
                 # Ensure the column is string-compatible
                 if not pd.api.types.is_string_dtype(df[col]):
                     df[col] = df[col].astype(str)
                 condition = df[col].str.contains(value, case=False, na=False)
+            elif operator in ["is"]:
+                if not pd.api.types.is_string_dtype(df[col]):
+                    df[col] = df[col].astype(str)
+                condition = df[col].fillna('').str.lower() == value.lower()
             else:
                 return "Unsupported operator. Use 'greater than', 'less than', 'equals', or 'contains'."
 
             # Perform deletion
             result = delete_record(condition, df, file_path)
+
             return result
 
 
@@ -474,6 +483,7 @@ def main():
         .bot-message {
             //align-self: flex-end;
             background-color: #e4e6eb;
+            color: #232324;
             margin-right: 10px;
         }
 
@@ -487,7 +497,8 @@ def main():
             max-width: 800px; /* Optional: limit the max width */
             border: 0;
             z-index: 1000; /* Make sure it appears on top */
-            background-color: #f7f7f7;
+            # background-color: #f7f7f7;
+            background-color: #a8a7a7;
             border-radius: 8px; /* Optional: rounded corners */
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); /* Optional: add shadow */
         }
@@ -509,8 +520,9 @@ def main():
         
         input[class]{
             font-size:80%;
-            color: white;
-            background-color: #deddd9;
+            # color: white;
+            color: #232324;
+            # background-color: #deddd9;
             
         }
         </style>
@@ -556,7 +568,6 @@ def main():
     with st.form("chat_input_form", clear_on_submit=True):
         user_input = st.text_input("Type your query:", "", key="chat_input", label_visibility="hidden", placeholder="Type your query")
         submitted = st.form_submit_button("Send")
-
     # Handle user input and bot response
     if submitted and user_input.strip():
         # Add user message to chat history

@@ -108,22 +108,12 @@ def handle_instruction(instruction, df, file_path):
             "after": ["after", "après"]
         }
         instruction = instruction.lower()
-        if any(keyword in instruction for keyword in keywords["add"]):
-            # pattern = re.findall(r"(\w+)\s*(?:is|est)\s*([\w\s]+)", instruction, re.IGNORECASE)
-            pattern = re.findall(r"(\w+)\s*(is|est)\s*([\w\s]+)", instruction, re.IGNORECASE)
-            if not pattern:
-                return ("Could not parse the addition instruction. "
-                        "Please follow the format: 'Add a record where column1 is value1, column2 is value2, ...'")
-        # Process addition logic here...
-
-
         # Handle "add" queries
         # if "add" in instruction.lower():
         if any(keyword in instruction for keyword in keywords["add"]):
             # Assuming a simple format: "Add a record where column1 is value1, column2 is value2, ..."
             # pattern = re.findall(r"(\w+)\s*is\s*([\w\s]+)", instruction, re.IGNORECASE)
-            # pattern = re.findall(r"(\w+)\s*(?:is|est)\s*([\w\s]+)", instruction, re.IGNORECASE)
-            pattern = re.findall(r"(\w+)\s*(is|est)\s*([\w\s]+)", instruction, re.IGNORECASE)
+            pattern = re.findall(r"(\w+)\s*(?:is|est)\s*([\w\s]+)", instruction, re.IGNORECASE)
             if not pattern:
                 return "Could not parse the addition instruction. Please follow the format: 'Add a record where column1 is value1, column2 is value2, ...'"
 
@@ -134,7 +124,7 @@ def handle_instruction(instruction, df, file_path):
 
             if not new_data:
                 return "No valid columns found for the new record."
-
+            print(new_data)
             result = add_record(new_data, df, file_path)
             st.success("Record Added successfully.")
             return result
@@ -149,8 +139,8 @@ def handle_instruction(instruction, df, file_path):
         #     )
         if any(keyword in instruction for keyword in keywords["update"]):
             condition_match = re.search(
-                # r"(?:update|modifier)\s+(\w+)\s+(?:to|à)\s+([\w\s\d.]+)\s+(?:where|où)\s+(.+)",
-                r"(update|modifier)\s+(\w+)\s+(to|à)\s+([\w\s\d.]+)\s+(where|où)\s+(.+)",
+                r"(?:update|modifier)\s+(\w+)\s+(?:to|à)\s+([\w\s\d.]+)\s+(?:where|où)\s+(.+)",
+                # r"(update|modifier)\s+(\w+)\s+(to|à)\s+([\w\s\d.]+)\s+(where|où)\s+(.+)",
                 instruction,
                 re.IGNORECASE,
             )
@@ -350,7 +340,7 @@ def handle_instruction(instruction, df, file_path):
             # Handle date-based conditions like "after", "before", or "on"
             condition_match = re.search(
                 # r"(?:after|après|before|avant|on|le)[\s]*(\d{4}-\d{2}-\d{2})",
-                r"(after|après|before|avant|on|le)[\s]*(\d{4}-\d{2}-\d{2})",
+                r"\b(after|après|before|avant|on|le)[\s]*(\d{4}-\d{2}-\d{2})",
                 instruction,
                 re.IGNORECASE,
             )
@@ -393,14 +383,13 @@ def handle_instruction(instruction, df, file_path):
             column = found_columns[0]
             condition_match = re.search(
                 # r"(?:greater than|supérieur à|plus que|moin que|less than|inférieur à|equals|égal à|is|est|of|de|before|avant|after|après)[\s]*([\w\s]+)",
-                r"(greater than|supérieur à|plus que|moin que|less than|inférieur à|equals|égal à|is|est|of|de|before|avant|after|après)[\s]*([\w\s]+)",
+                r"\b(greater than|supérieur à|plus que|moin que|less than|inférieur à|equals|égal à|is|est|of|de|before|avant|after|après)[\s]*([\w\s]+)",
                 instruction,
                 re.IGNORECASE,
             )
 
             if not condition_match:
                 return "Could not understand the condition. Please use keywords like 'greater than', 'less than', 'equals', etc."
-
             condition_type = condition_match.group(1).lower()
             condition_value = condition_match.group(2).strip()
 
@@ -447,7 +436,7 @@ def handle_instruction(instruction, df, file_path):
         #     re.IGNORECASE,
         # )
         condition_match = re.search(
-            r"(greater than|supérieur à|plus que|moin que|less than|inférieur à|equals|égal à|is|est|before|avant|after|après)[\s]*([\w\s]+)",
+            r"\b(greater than|supérieur à|plus que|moin que|less than|inférieur à|equals|égal à|is|est|before|avant|after|après)[\s]*([\w\s]+)",
             instruction,
             re.IGNORECASE,
         )
@@ -528,6 +517,11 @@ def main():
     st.markdown(
         """
         <style>
+        :root {
+            --input-text-color-light: #232324; /* Dark color for light mode */
+            --input-text-color-dark: white;  /* Light color for dark mode */
+        }
+
 
         .chat-message {
             margin: 10px 0;
@@ -579,11 +573,22 @@ def main():
             }
         }
 
+        @media (prefers-color-scheme: light) {
+            :root {
+                --input-text-color: var(--input-text-color-light);
+            }
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --input-text-color: var(--input-text-color-dark);
+            }
+        }
         
         input[class]{
             font-size:80%;
             # color: white;
-            color: #232324;
+            color: var(--input-text-color);
             # background-color: #deddd9;
             
         }

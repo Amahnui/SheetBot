@@ -1,21 +1,10 @@
 import pandas as pd
 import streamlit as st
+from datetime import datetime, timedelta
 import re
 import os
 import threading
 from utils.anomaly_checker import run_periodically
-import openai, os
-from dotenv import load_dotenv
-from langchain_experimental.agents.agent_toolkits import create_csv_agent
-from langchain_openai import ChatOpenAI
-
-
-load_dotenv()
-
-# Set your OpenAI API key
-openai.api_key = os.getenv("OPENAI_API_KEY") 
-
-df = pd.read_csv('combined_data.csv')
 
 # Function to load a CSV file into a DataFrame
 def load_csv(file_path):
@@ -93,7 +82,7 @@ def delete_record(condition, df, file_path):
 
 
 # Function to handle various user queries
-def handle_instruction(instruction_org, df, file_path):
+def handle_instruction(instruction, df, file_path):
     try:
 
         date_keywords = {
@@ -118,10 +107,9 @@ def handle_instruction(instruction_org, df, file_path):
             "before": ["before", "avant"],
             "after": ["after", "après"]
         }
-        instruction = instruction_org.lower()
+        instruction = instruction.lower()
         # Handle "add" queries
         # if "add" in instruction.lower():
-        print("Step 1")
         if any(keyword in instruction for keyword in keywords["add"]):
             # Assuming a simple format: "Add a record where column1 is value1, column2 is value2, ..."
             # pattern = re.findall(r"(\w+)\s*is\s*([\w\s]+)", instruction, re.IGNORECASE)
@@ -149,7 +137,6 @@ def handle_instruction(instruction_org, df, file_path):
         #         instruction,
         #         re.IGNORECASE,
         #     )
-        print("Step 2")
         if any(keyword in instruction for keyword in keywords["update"]):
             condition_match = re.search(
                 r"(?:update|modifier)\s+(\w+)\s+(?:to|à)\s+([\w\s\d.]+)\s+(?:where|où)\s+(.+)",
@@ -244,7 +231,6 @@ def handle_instruction(instruction_org, df, file_path):
         #         instruction,
         #         re.IGNORECASE,
         #     )
-        print("Step 3")
         if any(keyword in instruction for keyword in keywords["delete"]):
             condition_match = re.search(
                 # r"(\w+)\s+(?:greater than|supérieur à|plus que|moin que|less than|inférieur à|equals|égal à|is|est|contains|contient|à)\s+([\w\s\d.]+)",
@@ -300,18 +286,196 @@ def handle_instruction(instruction_org, df, file_path):
         # Handle "how many" queries and other operations...
         # (Add the existing code from your previous `handle_instruction` function here.)
 
-        print("Step 4")
+        # Handle "how many" or "find all" queries involving dates
+        if (("how many" in instruction or "combien" in instruction) or (instruction in ["find", "trouver", "rechercher", "chercher", "cherche"])) and "date" in instruction.lower():
+            # Identify date-related columns
+            # date_columns = [col for col in df.columns if "date" in col.lower()]
+            date_columns = [col for col in df.columns if any(keyword in col.lower() for keyword in ["date", "la date"])]
 
-        llm = ChatOpenAI(temperature=0.5)
-        csv_files = ["agent.csv", "vehicule.csv","intervention.csv"]
+            if not date_columns:
+                return "No date columns found in the dataset."
 
-        agent_executer = create_csv_agent(llm,"combined_data.csv", verbose=True, allow_dangerous_code=True)
-        # result = df[df["fabricant"].str.lower() == "toyota"]
+            date_column = date_columns[0]
+            df[date_column] = pd.to_datetime(df[date_column], errors='coerce')
 
-        # response = agent_executer.invoke("How many records are from agent's file?")
-        response = agent_executer.invoke(instruction_org)
-        print(response)
-        return response["output"]
+            # Check for keywords like "today" or "yesterday"
+            if "today" in instruction or "aujourd'hui" in instruction:
+                today = datetime.now().date()
+                matching_records = df[df[date_column].dt.date == today]
+                count = matching_records.shape[0]
+
+                # Display table or return count based on query type
+                if instruction in ["find", "trouver", "rechercher", "chercher", "cherche"]:
+                    return matching_records
+                    # st.table(matching_records)
+                    # return f"Displayed all records dated today. Total records: {count}."
+                return f"Number of records dated today: {count}"
+
+            if "yesterday" in instruction or "hier" in instruction:
+                yesterday = (datetime.now() - timedelta(days=1)).date()
+                matching_records = df[df[date_column].dt.date == yesterday]
+                count = matching_records.shape[0]
+
+                # Display table or return count based on query type
+                if "find" in instruction or "trouver" in instruction:
+                    return matching_records
+                    # st.table(matching_records)
+                    # return f"Displayed all records dated yesterday. Total records: {count}."
+                return f"Number of records dated yesterday: {count}"
+
+            # Check for specific date queries like "How many records are on 2024-08-10?"
+            specific_date_match = re.search(r"\b(\d{4}-\d{2}-\d{2})\b", instruction)
+            if specific_date_match:
+                specific_date = pd.to_datetime(specific_date_match.group(1)).date()
+                matching_records = df[df[date_column].dt.date == specific_date]
+                count = matching_records.shape[0]
+
+                # Display table or return count based on query type
+                if instruction in ["find", "trouver", "rechercher", "chercher", "cherche"]:
+                    # st.table(matching_records)
+                    return matching_records
+                    # return f"Displayed all records dated {specific_date}. Total records: {count}."
+                return f"Number of records with a date of {specific_date}: {count}"
+
+            # Handle date-based conditions like "after", "before", or "on"
+            condition_match = re.search(
+                # r"(?:after|après|before|avant|on|le)[\s]*(\d{4}-\d{2}-\d{2})",
+                r"\b(after|après|before|avant|on|le)[\s]*(\d{4}-\d{2}-\d{2})",
+                instruction,
+                re.IGNORECASE,
+            )
+            if condition_match:
+                condition_type = condition_match.group(1).lower()
+                condition_value = pd.to_datetime(condition_match.group(2)).date()
+
+                if condition_type in date_keywords["after"]:
+                    matching_records = df[df[date_column].dt.date > condition_value]
+                elif condition_type in date_keywords["before"]:
+                    matching_records = df[df[date_column].dt.date < condition_value]
+                elif condition_type in date_keywords["on"]:
+                    matching_records = df[df[date_column].dt.date == condition_value]
+                else:
+                    return "Condition type not supported for dates. Use 'after', 'before', or 'on'."
+
+                count = matching_records.shape[0]
+
+                # Display table or return count based on query type
+                if instruction in ["find", "trouver", "rechercher", "chercher", "cherche"]:
+                    return matching_records
+                    # st.table(matching_records)
+                    # return f"Displayed all records where {date_column} is {condition_type} {condition_value}. Total records: {count}."
+                return f"Number of records where {date_column} is {condition_type} {condition_value}: {count}"
+
+            # Return if no matching date query was found
+            return "Could not understand the date condition. Please use keywords like 'after', 'before', 'on', or a specific date."
+
+
+        # Handle general "how many" queries (runs only if no date-specific query matched)
+        elif "how many" in instruction or "combien" in instruction:
+            # Identify the column and value
+            column_names = df.columns.tolist()
+            found_columns = [col for col in column_names if col.lower() in instruction]
+
+            if not found_columns:
+                return "No matching column found. Please try a different instruction."
+
+            # Assume the first found column is the one user intended
+            column = found_columns[0]
+            condition_match = re.search(
+                # r"(?:greater than|supérieur à|plus que|moin que|less than|inférieur à|equals|égal à|is|est|of|de|before|avant|after|après)[\s]*([\w\s]+)",
+                r"\b(greater than|supérieur à|plus que|moin que|less than|inférieur à|equals|égal à|is|est|of|de|before|avant|after|après)[\s]*([\w\s]+)",
+                instruction,
+                re.IGNORECASE,
+            )
+
+            if not condition_match:
+                return "Could not understand the condition. Please use keywords like 'greater than', 'less than', 'equals', etc."
+            condition_type = condition_match.group(1).lower()
+            condition_value = condition_match.group(2).strip()
+
+            # Convert condition_value to the appropriate type
+            if condition_value.replace('.', '', 1).isdigit():
+                condition_value = float(condition_value)
+            elif condition_value.lower() in ["true", "false"]:
+                condition_value = condition_value.lower() == "true"
+
+            # Convert numeric-like columns to numeric type
+            if pd.api.types.is_numeric_dtype(df[column]) or df[column].apply(lambda x: str(x).replace('.', '', 1).isdigit()).all():
+                df[column] = pd.to_numeric(df[column], errors='coerce')
+
+            # Count records based on the condition
+            if condition_type in keywords["greater than"] + keywords["after"]:
+                count = df[df[column] > condition_value].shape[0]
+            elif condition_type in keywords["less than"] + keywords["before"]:
+                count = df[df[column] < condition_value].shape[0]
+            elif condition_type in keywords["equals"] + keywords["is"]:
+                if pd.api.types.is_numeric_dtype(df[column]):
+                    count = df[df[column] == condition_value].shape[0]
+                else:
+                    count = df[df[column].str.contains(condition_value, case=False, na=False)].shape[0]
+            else:
+                return "Condition type not supported for counting. Please use 'greater than', 'less than', or 'equals'."
+
+            # Debug: Log count
+            # st.write(f"Count for condition '{condition_type} {condition_value}':", count)
+            return f"Number of records where {column} {condition_type} '{condition_value}': {count}"
+
+
+        # Handle queries to display filtered results
+        column_names = df.columns.tolist()
+        # print(column_names)
+        found_columns = [col for col in column_names if col.lower() in instruction]
+        if not found_columns:
+            return "No matching column found. Please try a different instruction."
+
+        # Assume the first found column is the one user intended
+        column = found_columns[0]
+        # condition_match = re.search(
+        #     r"(?:greater than|supérieur à|plus que|moin que|less than|inférieur à|equals|égal à|is|est|before|avant|after|après)[\s]*([\w\s]+)",
+        #     instruction,
+        #     re.IGNORECASE,
+        # )
+        condition_match = re.search(
+            r"\b(greater than|supérieur à|plus que|moin que|less than|inférieur à|equals|égal à|is|est|before|avant|after|après)[\s]*([\w\s]+)",
+            instruction,
+            re.IGNORECASE,
+        )
+        print(condition_match.groups())
+        if not condition_match:
+            return "Could not understand the condition. Please use keywords like 'greater than', 'less than', 'equals', 'is', 'before', 'after'."
+
+        condition_type = condition_match.group(1).lower()
+        condition_value = condition_match.group(2).strip()
+
+        # Convert condition_value to the appropriate type
+        if condition_value.replace('.', '', 1).isdigit():
+            condition_value = float(condition_value)
+        elif condition_value.lower() in ["true", "false"]:
+            condition_value = condition_value.lower() == "true"
+
+        # Convert numeric-like columns to numeric type
+        if pd.api.types.is_numeric_dtype(df[column]) or df[column].apply(lambda x: str(x).replace('.', '', 1).isdigit()).all():
+            df[column] = pd.to_numeric(df[column], errors='coerce')
+
+        # Filter records based on the condition
+        if condition_type in keywords["greater than"] + keywords["after"]:
+            filtered_df = df[df[column] > condition_value]
+        elif condition_type in keywords["less than"] + keywords["before"]:
+            filtered_df = df[df[column] < condition_value]
+        elif condition_type in keywords["equals"] + keywords["is"]:
+            if pd.api.types.is_numeric_dtype(df[column]):
+                filtered_df = df[df[column] == condition_value]
+            else:
+                filtered_df = df[df[column].str.contains(condition_value, case=False, na=False)]
+        else:
+            return "Condition type not supported for filtering. Please use 'greater than', 'less than', or 'equals'."
+
+        # Debug: Log filtered DataFrame state
+        # st.write("Filtered DataFrame preview:")
+        # st.write(filtered_df.head())
+        return filtered_df
+    
+        # return "Instruction not recognized."
 
     except Exception as e:
         st.error(f"Error handling instruction: {e}")
@@ -331,6 +495,25 @@ def main():
     # Set up page layout
     st.set_page_config(page_title="Chatbot", layout="wide")
 
+        # .chat-container {
+        #     display: flex;
+        #     flex-direction: column;
+        #     height: 70vh;
+        #     overflow-y: auto;
+        #     background-color: #f7f7f7;
+        #     padding: 10px;
+        #     border: 1px solid #ddd;
+        #     border-radius: 8px;
+        # }
+
+        #  .stForm {
+        #     position: fixed;
+        #     bottom: 7%;
+        #     left: 29%;
+        #     width:69%;
+        #     border: 0;
+        #     z-index: 1000;
+        # }
     st.markdown(
         """
         <style>
@@ -364,7 +547,7 @@ def main():
         .stForm {
             position: fixed;
             bottom: 5%; /* Adjusted to make it more balanced */
-            left: 50%; /* Center the form */
+            left: 60%; /* Center the form */
             transform: translateX(-50%); /* Center alignment */
             width: 70%; /* Responsive width */
             max-width: 800px; /* Optional: limit the max width */
@@ -379,7 +562,6 @@ def main():
         @media screen and (max-width: 1024px) {
             .stForm {
                 width: 90%; /* Adjust width for tablets and smaller desktop views */
-                left: 50%;
             }
         }
 
@@ -421,14 +603,12 @@ def main():
     csv_files = [f for f in os.listdir(sheet_folder_path) if f.endswith('.csv')]
     csv_files.sort()
 
-    # st.sidebar.header("File Selection")
-    # selected_file = st.sidebar.selectbox("Select a CSV file:", csv_files)
+    st.sidebar.header("File Selection")
+    selected_file = st.sidebar.selectbox("Select a CSV file:", csv_files)
     df = None
     file_path = None
-    # if selected_file:
-    if True:
-        # file_path = f'{sheet_folder_path}/{selected_file}'
-        file_path = f'{sheet_folder_path}/combined_data.csv'
+    if selected_file:
+        file_path = f'{sheet_folder_path}/{selected_file}'
         df = load_csv(file_path)
 
     # Initialize chat history

@@ -15,8 +15,6 @@ load_dotenv()
 # Set your OpenAI API key
 openai.api_key = os.getenv("OPENAI_API_KEY") 
 
-df = pd.read_csv('combined_data.csv')
-
 # Function to load a CSV file into a DataFrame
 def load_csv(file_path):
     try:

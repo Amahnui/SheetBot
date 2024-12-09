@@ -303,9 +303,10 @@ def handle_instruction(instruction_org, df, file_path):
         print("Step 4")
 
         llm = ChatOpenAI(temperature=0.5)
-        csv_files = ["agent.csv", "vehicule.csv","intervention.csv"]
 
-        agent_executer = create_csv_agent(llm,"combined_data.csv", verbose=True, allow_dangerous_code=True)
+        # agent_executer = create_csv_agent(llm,"combined_data.csv", verbose=True, allow_dangerous_code=True)
+        
+        agent_executer = create_csv_agent(llm, file_path, verbose=True, allow_dangerous_code=True)
         # result = df[df["fabricant"].str.lower() == "toyota"]
 
         # response = agent_executer.invoke("How many records are from agent's file?")

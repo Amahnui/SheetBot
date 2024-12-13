@@ -3,7 +3,7 @@ import streamlit as st
 import re
 import os
 import threading
-from utils.anomaly_checker import run_periodically
+from utils.run_anomaly import execute
 import openai, os
 from dotenv import load_dotenv
 from langchain_experimental.agents.agent_toolkits import create_csv_agent
@@ -14,6 +14,8 @@ load_dotenv()
 
 # Set your OpenAI API key
 openai.api_key = os.getenv("OPENAI_API_KEY") 
+
+# df = pd.read_csv('combined_data.csv')
 
 # Function to load a CSV file into a DataFrame
 def load_csv(file_path):
@@ -120,7 +122,7 @@ def handle_instruction(instruction_org, df, file_path):
         # Handle "add" queries
         # if "add" in instruction.lower():
         print("Step 1")
-        if any(keyword in instruction for keyword in keywords["add"]):
+        if any(instruction.startswith(keyword) for keyword in keywords["add"]):
             # Assuming a simple format: "Add a record where column1 is value1, column2 is value2, ..."
             # pattern = re.findall(r"(\w+)\s*is\s*([\w\s]+)", instruction, re.IGNORECASE)
             pattern = re.findall(r"(\w+)\s*(?:is|est)\s*([\w\s]+)", instruction, re.IGNORECASE)
@@ -148,7 +150,7 @@ def handle_instruction(instruction_org, df, file_path):
         #         re.IGNORECASE,
         #     )
         print("Step 2")
-        if any(keyword in instruction for keyword in keywords["update"]):
+        if any(instruction.startswith(keyword) for keyword in keywords["update"]):
             condition_match = re.search(
                 r"(?:update|modifier)\s+(\w+)\s+(?:to|à)\s+([\w\s\d.]+)\s+(?:where|où)\s+(.+)",
                 # r"(update|modifier)\s+(\w+)\s+(to|à)\s+([\w\s\d.]+)\s+(where|où)\s+(.+)",
@@ -243,7 +245,7 @@ def handle_instruction(instruction_org, df, file_path):
         #         re.IGNORECASE,
         #     )
         print("Step 3")
-        if any(keyword in instruction for keyword in keywords["delete"]):
+        if any(instruction.startswith(keyword) for keyword in keywords["delete"]):
             condition_match = re.search(
                 # r"(\w+)\s+(?:greater than|supérieur à|plus que|moin que|less than|inférieur à|equals|égal à|is|est|contains|contient|à)\s+([\w\s\d.]+)",
                 r"(\w+)\s+(greater than|supérieur à|plus que|moin que|less than|inférieur à|equals|égal à|is|est|contains|contient|à)\s+([\w\s\d.]+)",
@@ -301,10 +303,9 @@ def handle_instruction(instruction_org, df, file_path):
         print("Step 4")
 
         llm = ChatOpenAI(temperature=0.5)
+        # csv_files = ["agent.csv", "vehicule.csv","intervention.csv"]
 
-        # agent_executer = create_csv_agent(llm,"combined_data.csv", verbose=True, allow_dangerous_code=True)
-        
-        agent_executer = create_csv_agent(llm, file_path, verbose=True, allow_dangerous_code=True)
+        agent_executer = create_csv_agent(llm,file_path, verbose=True, allow_dangerous_code=True)
         # result = df[df["fabricant"].str.lower() == "toyota"]
 
         # response = agent_executer.invoke("How many records are from agent's file?")
@@ -316,12 +317,12 @@ def handle_instruction(instruction_org, df, file_path):
         st.error(f"Error handling instruction: {e}")
         return f"Error handling instruction: {e}"
 
-def start_periodic_task(interval):
-    """Starts the anomaly check task in a separate thread."""
-    periodic_thread = threading.Thread(target=run_periodically, args=(interval,))
-    periodic_thread.daemon = True  # Ensures the thread exits when the main program exits
-    periodic_thread.start()
-    print(f"Background task started: running every {interval} seconds.")
+# def start_periodic_task(interval):
+#     """Starts the anomaly check task in a separate thread."""
+#     periodic_thread = threading.Thread(target=run_periodically, args=(interval,))
+#     periodic_thread.daemon = True  # Ensures the thread exits when the main program exits
+#     periodic_thread.start()
+#     print(f"Background task started: running every {interval} seconds.")
 
 
 # Main function for the Streamlit app
@@ -453,6 +454,7 @@ def main():
     # Input box at the bottom
     with st.form("chat_input_form", clear_on_submit=True):
         user_input = st.text_input("Type your query:", "", key="chat_input", label_visibility="hidden", placeholder="Type your query")
+        edited_user_input = f"{user_input}. If you're doing a search then it should not be case sensitive, your output should not be a process of what should be done but rather the result"
         submitted = st.form_submit_button("Send")
     # Handle user input and bot response
     if submitted and user_input.strip():
@@ -464,7 +466,7 @@ def main():
             st.session_state["messages"].append({"sender": "bot", "type": "text", "content": bot_response})
         else:
             # Call query handling logic
-            result = handle_instruction(user_input, df, file_path)
+            result = handle_instruction(edited_user_input, df, file_path)
             if isinstance(result, pd.DataFrame):
                 st.session_state["messages"].append({"sender": "bot", "type": "dataframe", "content": result})
             else:
@@ -476,4 +478,5 @@ def main():
 
 if __name__ == "__main__":
     # start_periodic_task(3600)  # Runs every 1 hour
+    execute()
     main()

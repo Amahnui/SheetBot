@@ -3,7 +3,7 @@ import streamlit as st
 import re
 import os
 import threading
-from utils.run_anomaly import execute
+from utils.run_anomaly import scheduler_execute
 import openai, os
 from dotenv import load_dotenv
 from langchain_experimental.agents.agent_toolkits import create_csv_agent
@@ -317,12 +317,12 @@ def handle_instruction(instruction_org, df, file_path):
         st.error(f"Error handling instruction: {e}")
         return f"Error handling instruction: {e}"
 
-# def start_periodic_task(interval):
-#     """Starts the anomaly check task in a separate thread."""
-#     periodic_thread = threading.Thread(target=run_periodically, args=(interval,))
-#     periodic_thread.daemon = True  # Ensures the thread exits when the main program exits
-#     periodic_thread.start()
-#     print(f"Background task started: running every {interval} seconds.")
+def start_periodic_task():
+    """Starts the anomaly check task in a separate thread."""
+    periodic_thread = threading.Thread(target=scheduler_execute)
+    periodic_thread.daemon = True  # Ensures the thread exits when the main program exits
+    periodic_thread.start()
+    print(f"Background task started")
 
 
 # Main function for the Streamlit app
@@ -477,6 +477,5 @@ def main():
 
 
 if __name__ == "__main__":
-    # start_periodic_task(3600)  # Runs every 1 hour
-    execute()
+    start_periodic_task()
     main()

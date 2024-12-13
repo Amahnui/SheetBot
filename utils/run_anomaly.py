@@ -60,7 +60,7 @@ schedule.every().day.at(month_year_alert_time).do(lambda: monthly_job() if is_en
 schedule.every().day.at(month_year_alert_time).do(lambda: yearly_job() if is_end_of_year() else None)
 
 
-def execute():
+def scheduler_execute():
     # Keep running the scheduler
     while True:
         schedule.run_pending()

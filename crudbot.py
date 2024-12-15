@@ -2,9 +2,11 @@ import pandas as pd
 import streamlit as st
 import re
 import os
+import tempfile
 import threading
 from utils.run_anomaly import scheduler_execute
-import openai, os
+from utils import data_handler
+import openai
 from dotenv import load_dotenv
 from langchain_experimental.agents.agent_toolkits import create_csv_agent
 from langchain_openai import ChatOpenAI
@@ -163,7 +165,6 @@ def handle_instruction(instruction_org, df, file_path):
             column_to_update = condition_match.group(1).strip()
             new_value = condition_match.group(2).strip()
             condition = condition_match.group(3).strip()
-            print(condition_match.groups())
             # Ensure column exists
             if column_to_update not in df.columns:
                 return f"Column '{column_to_update}' not found in the DataFrame."
@@ -258,7 +259,6 @@ def handle_instruction(instruction_org, df, file_path):
             col = condition_match.group(1).strip()
             operator = condition_match.group(2).lower()
             value = condition_match.group(3).strip()
-            print(condition_match.groups())
             # Ensure column exists
             if col not in df.columns:
                 return f"Column '{col}' not found in the DataFrame."
@@ -303,14 +303,15 @@ def handle_instruction(instruction_org, df, file_path):
         print("Step 4")
 
         llm = ChatOpenAI(temperature=0.5)
-        # csv_files = ["agent.csv", "vehicule.csv","intervention.csv"]
 
-        agent_executer = create_csv_agent(llm,file_path, verbose=True, allow_dangerous_code=True)
-        # result = df[df["fabricant"].str.lower() == "toyota"]
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as temp_csv:
+            df.to_csv(temp_csv.name, index=False)
+            temp_csv_path = temp_csv.name  
 
-        # response = agent_executer.invoke("How many records are from agent's file?")
+        agent_executer = create_csv_agent(llm, temp_csv_path, verbose=True, allow_dangerous_code=True)
         response = agent_executer.invoke(instruction_org)
         print(response)
+        os.remove(temp_csv_path)
         return response["output"]
 
     except Exception as e:
@@ -418,18 +419,12 @@ def main():
     # Sidebar for file selection
     current_wd = os.getcwd()
     sheet_folder_path = f"{current_wd}/files/sheets"
-    csv_files = [f for f in os.listdir(sheet_folder_path) if f.endswith('.csv')]
-    csv_files.sort()
+    # Sidebar for file selection
+    current_wd = os.getcwd()
+    sheet_folder_path = f"{current_wd}/files/sheets"
 
-    # st.sidebar.header("File Selection")
-    # selected_file = st.sidebar.selectbox("Select a CSV file:", csv_files)
-    df = None
-    file_path = None
-    # if selected_file:
-    if True:
-        # file_path = f'{sheet_folder_path}/{selected_file}'
-        file_path = f'{sheet_folder_path}/combined_data.csv'
-        df = load_csv(file_path)
+    file_path = f'{sheet_folder_path}/combined_data.csv'
+    df = data_handler.main()
 
     # Initialize chat history
     if "messages" not in st.session_state:

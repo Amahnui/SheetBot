@@ -362,7 +362,7 @@ def main():
         }
 
 
-        .stForm {
+        .stMain .stForm {
             position: fixed;
             bottom: 5%; /* Adjusted to make it more balanced */
             left: 50%; /* Center the form */
@@ -378,14 +378,14 @@ def main():
         }
 
         @media screen and (max-width: 1024px) {
-            .stForm {
+            .stMain .stForm {
                 width: 90%; /* Adjust width for tablets and smaller desktop views */
                 left: 50%;
             }
         }
 
         @media screen and (max-width: 768px) {
-            .stForm {
+            .stMain .stForm {
                 width: 100%; /* Full width for mobile devices */
                 left: 0; /* Align to the left side */
                 transform: translateX(0); /* No centering */
@@ -409,22 +409,44 @@ def main():
             # color: white;
             color: var(--input-text-color);
             # background-color: #deddd9;
-            
+        
+                    /* Style the entire database connection form */
+        .stSidebar .stForm {
+            background-color: #a8a7a7;
+        }
+
         }
         </style>
         """,
         unsafe_allow_html=True
     )
 
+
     # Sidebar for file selection
     current_wd = os.getcwd()
     sheet_folder_path = f"{current_wd}/files/sheets"
-    # Sidebar for file selection
-    current_wd = os.getcwd()
-    sheet_folder_path = f"{current_wd}/files/sheets"
+    
+    # Sidebar for database connection
+    st.sidebar.header("Database Connection Details")
+    with st.sidebar.form("db_connection_form"):
+        db_host = st.text_input("Host", placeholder="e.g., localhost")
+        db_port = st.text_input("Port", placeholder="e.g., 5432")
+        db_name = st.text_input("Database Name", placeholder="e.g., mydb")
+        db_user = st.text_input("Username", placeholder="e.g., admin")
+        db_password = st.text_input("Password", type="password")
+        db_submit = st.form_submit_button("Connect")
+
+    if db_submit:
+        try:
+            
+            cleaned_df = data_handler.main(db_user, db_password, db_host, db_port, db_name)
+            st.session_state["cleaned_df"] = cleaned_df
+            # Feedback for successful connection
+            st.sidebar.success("Connected successfully!")
+        except Exception as e:
+            st.sidebar.error(f"Connection failed: {str(e)}")
 
     file_path = f'{sheet_folder_path}/combined_data.csv'
-    df = data_handler.main()
 
     # Initialize chat history
     if "messages" not in st.session_state:
@@ -456,12 +478,13 @@ def main():
         # Add user message to chat history
         st.session_state["messages"].append({"sender": "user", "type": "text", "content": user_input})
 
-        if df is None:
-            bot_response = "Please select a file before querying."
+        if "cleaned_df" not in st.session_state:
+            bot_response = "Data can't be accessed"
             st.session_state["messages"].append({"sender": "bot", "type": "text", "content": bot_response})
         else:
+            cleaned_df = st.session_state["cleaned_df"]
             # Call query handling logic
-            result = handle_instruction(edited_user_input, df, file_path)
+            result = handle_instruction(edited_user_input, cleaned_df, file_path)
             if isinstance(result, pd.DataFrame):
                 st.session_state["messages"].append({"sender": "bot", "type": "dataframe", "content": result})
             else:

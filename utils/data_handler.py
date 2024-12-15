@@ -68,13 +68,13 @@ def clean_data(df_list):
     return df
 
 
-def main():
+def main(db_user, db_password, db_host, db_port, db_name):
     conn = psycopg2.connect(
-        database= os.getenv("DB_NAME"),
-        user= os.getenv("DB_USER"),
-        password= os.getenv("DB_PASS"),
-        host= os.getenv("DB_HOST"),
-        port= os.getenv("DB_PORT")
+        database= db_name,
+        user= db_user,
+        password= db_password,
+        host= db_host,
+        port= db_port
     )
 
     query_dict = {}

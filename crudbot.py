@@ -10,6 +10,7 @@ import openai
 from dotenv import load_dotenv
 from langchain_experimental.agents.agent_toolkits import create_csv_agent
 from langchain_openai import ChatOpenAI
+from langdetect import detect
 
 
 load_dotenv()
@@ -308,7 +309,12 @@ def handle_instruction(instruction_org, df, file_path):
             df.to_csv(temp_csv.name, index=False)
             temp_csv_path = temp_csv.name  
 
-        agent_executer = create_csv_agent(llm, temp_csv_path, verbose=True, allow_dangerous_code=True)
+        agent_executer = create_csv_agent(
+            llm, temp_csv_path, verbose=True, 
+            allow_dangerous_code=True,
+            max_iterations=10, 
+            max_execution_time=30 
+    )
         response = agent_executer.invoke(instruction_org)
         print(response)
         os.remove(temp_csv_path)
@@ -325,6 +331,13 @@ def start_periodic_task():
     periodic_thread.start()
     print(f"Background task started")
 
+
+# Detect the language of the input
+def get_language(input_text):
+    try:
+        return detect(input_text)  
+    except:
+        return None  
 
 # Main function for the Streamlit app
 
@@ -471,7 +484,6 @@ def main():
     # Input box at the bottom
     with st.form("chat_input_form", clear_on_submit=True):
         user_input = st.text_input("Type your query:", "", key="chat_input", label_visibility="hidden", placeholder="Type your query")
-        edited_user_input = f"{user_input}. If you're doing a search then it should not be case sensitive, your output should not be a process of what should be done but rather the result"
         submitted = st.form_submit_button("Send")
     # Handle user input and bot response
     if submitted and user_input.strip():
@@ -484,6 +496,14 @@ def main():
         else:
             cleaned_df = st.session_state["cleaned_df"]
             # Call query handling logic
+            lang = get_language(user_input)
+            if lang == 'en':
+                instructional_prompt = "If you're doing a search then it should not be case sensitive, your output should not be a process of what should be done but rather the result. respond only in English with a phrase or sentence"
+            elif lang == 'fr':
+                instructional_prompt = "Si vous effectuez une recherche, elle ne doit pas être sensible à la casse, et votre réponse ne doit pas être un processus de ce qu'il faut faire mais plutôt le résultat. Veuillez répondre uniquement en français avec une expression ou une phrase."
+            else:
+                instructional_prompt = "If you're doing a search then it should not be case sensitive, your output should not be a process of what should be done but rather the result. respond only in English with a phrase or sentence"
+            edited_user_input = f"{user_input}. {instructional_prompt}"
             result = handle_instruction(edited_user_input, cleaned_df, file_path)
             if isinstance(result, pd.DataFrame):
                 st.session_state["messages"].append({"sender": "bot", "type": "dataframe", "content": result})

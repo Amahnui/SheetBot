@@ -498,11 +498,11 @@ def main():
             # Call query handling logic
             lang = get_language(user_input)
             if lang == 'en':
-                instructional_prompt = "If you're doing a search then it should not be case sensitive, your output should not be a process of what should be done but rather the result. respond only in English."
+                instructional_prompt = "If you're doing a search then it should not be case sensitive, your output should not be a process of what should be done but rather the result. respond only in English with a phrase or sentence."
             elif lang == 'fr':
-                instructional_prompt = "Si vous effectuez une recherche, elle ne doit pas être sensible à la casse, et votre réponse ne doit pas être un processus de ce qu'il faut faire mais plutôt le résultat."
+                instructional_prompt = "Si vous effectuez une recherche, elle ne doit pas être sensible à la casse, et votre réponse ne doit pas être un processus de ce qu'il faut faire mais plutôt le résultat. Veuillez répondre uniquement en français avec une expression ou une phrase."
             else:
-                instructional_prompt = "If you're doing a search then it should not be case sensitive, your output should not be a process of what should be done but rather the result. respond only in English."
+                instructional_prompt = "If you're doing a search then it should not be case sensitive, your output should not be a process of what should be done but rather the result. respond only in English with a phrase or sentence."
             edited_user_input = f"{user_input}. {instructional_prompt}"
             result = handle_instruction(edited_user_input, cleaned_df, file_path)
             if isinstance(result, pd.DataFrame):

@@ -18,23 +18,34 @@ def fetch_data_to_dataframe(conn, query_dict):
 
     df_list= []
     for query in query_dict:
-        df = pd.read_sql_query(query_dict[query], conn)
+        # df = pd.read_sql_query(query_dict[query], conn)
+        df = pd.read_sql_query(query_dict[query], conn, coerce_float=True)
+        try:
 
-        if df.empty:
-            print(f"Table '{query}' is empty. Skipping...")
-            continue
+            df = df.applymap(lambda x: x.encode('utf-8', errors='replace').decode('utf-8') 
+                             if isinstance(x, str) else x)
+                            #  SELECT convert(column_name USING UTF8) AS column_name FROM rep.table_name;
+            if df.empty:
+                print(f"Table '{query}' is empty. Skipping...")
+                continue
 
-        #handle duplicated columns
-        if len(df) > 0:
-            first_two_columns = list(df.columns[:2])
-            first_row_values = df.iloc[0, :2].astype(str).tolist()
-            if first_two_columns == first_row_values:
-                # Drop the first row
-                df = df.iloc[1:].reset_index(drop=True)
+            #handle duplicated columns
+            if len(df) > 0:
+                first_two_columns = list(df.columns[:2])
+                first_row_values = df.iloc[0, :2].astype(str).tolist()
+                if first_two_columns == first_row_values:
+                    # Drop the first row
+                    df = df.iloc[1:].reset_index(drop=True)
 
-            df["source_table"] = query
-            df["searchable_text"] = df.apply(lambda row: " ".join(map(str, row)), axis=1)
-            df_list.append(df)
+                df["source_table"] = query
+                df["searchable_text"] = df.apply(lambda row: " ".join(map(str, row)), axis=1)
+                df_list.append(df)
+        except UnicodeDecodeError as e:
+            print(f"UnicodeDecodeError in table '{query}': {e}. Skipping this table...")
+        except Exception as e:
+            print(f"Error processing table '{query}': {e}. Skipping this table...")
+
+        
 
 
     return df_list

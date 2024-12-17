@@ -5,7 +5,7 @@ import os
 import tempfile
 import threading
 from utils.run_anomaly import scheduler_execute
-from utils import data_handler
+from utils import data_handler_v1
 import openai
 from dotenv import load_dotenv
 from langchain_experimental.agents.agent_toolkits import create_csv_agent
@@ -303,8 +303,7 @@ def handle_instruction(instruction_org, df, file_path):
 
         print("Step 4")
 
-        llm = ChatOpenAI(temperature=0.5)
-
+        llm = ChatOpenAI(temperature=0.5, model="gpt-4o-mini")
         with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as temp_csv:
             df.to_csv(temp_csv.name, index=False)
             temp_csv_path = temp_csv.name  
@@ -312,6 +311,7 @@ def handle_instruction(instruction_org, df, file_path):
         agent_executer = create_csv_agent(
             llm, temp_csv_path, verbose=True, 
             allow_dangerous_code=True,
+            handle_parsing_errors=True,
             max_iterations=10, 
             max_execution_time=30 
     )
@@ -452,7 +452,7 @@ def main():
     if db_submit:
         try:
             
-            cleaned_df = data_handler.main(db_user, db_password, db_host, db_port, db_name)
+            cleaned_df = data_handler_v1.main(db_user, db_password, db_host, db_port, db_name)
             st.session_state["cleaned_df"] = cleaned_df
             # Feedback for successful connection
             st.sidebar.success("Connected successfully!")
@@ -498,11 +498,11 @@ def main():
             # Call query handling logic
             lang = get_language(user_input)
             if lang == 'en':
-                instructional_prompt = "If you're doing a search then it should not be case sensitive, your output should not be a process of what should be done but rather the result. respond only in English with a phrase or sentence"
+                instructional_prompt = "If you're doing a search then it should not be case sensitive, your output should not be a process of what should be done but rather the result. respond only in English."
             elif lang == 'fr':
-                instructional_prompt = "Si vous effectuez une recherche, elle ne doit pas être sensible à la casse, et votre réponse ne doit pas être un processus de ce qu'il faut faire mais plutôt le résultat. Veuillez répondre uniquement en français avec une expression ou une phrase."
+                instructional_prompt = "Si vous effectuez une recherche, elle ne doit pas être sensible à la casse, et votre réponse ne doit pas être un processus de ce qu'il faut faire mais plutôt le résultat."
             else:
-                instructional_prompt = "If you're doing a search then it should not be case sensitive, your output should not be a process of what should be done but rather the result. respond only in English with a phrase or sentence"
+                instructional_prompt = "If you're doing a search then it should not be case sensitive, your output should not be a process of what should be done but rather the result. respond only in English."
             edited_user_input = f"{user_input}. {instructional_prompt}"
             result = handle_instruction(edited_user_input, cleaned_df, file_path)
             if isinstance(result, pd.DataFrame):

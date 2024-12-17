@@ -8,9 +8,10 @@ load_dotenv()
 def get_all_tables(conn):
 
     cursor = conn.cursor()
-    cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
+    cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'rep'")
     table_names = [row[0] for row in cursor.fetchall()]
     cursor.close()
+    # print(table_names)
     return table_names
 
 def fetch_data_to_dataframe(conn, query_dict):
@@ -19,16 +20,21 @@ def fetch_data_to_dataframe(conn, query_dict):
     for query in query_dict:
         df = pd.read_sql_query(query_dict[query], conn)
 
-        #handle duplicated columns
-        first_two_columns = list(df.columns[:2])
-        first_row_values = df.iloc[0, :2].astype(str).tolist()
-        if first_two_columns == first_row_values:
-            # Drop the first row
-            df = df.iloc[1:].reset_index(drop=True)
+        if df.empty:
+            print(f"Table '{query}' is empty. Skipping...")
+            continue
 
-        df["source_table"] = query
-        df["searchable_text"] = df.apply(lambda row: " ".join(map(str, row)), axis=1)
-        df_list.append(df)
+        #handle duplicated columns
+        if len(df) > 0:
+            first_two_columns = list(df.columns[:2])
+            first_row_values = df.iloc[0, :2].astype(str).tolist()
+            if first_two_columns == first_row_values:
+                # Drop the first row
+                df = df.iloc[1:].reset_index(drop=True)
+
+            df["source_table"] = query
+            df["searchable_text"] = df.apply(lambda row: " ".join(map(str, row)), axis=1)
+            df_list.append(df)
 
 
     return df_list
@@ -79,7 +85,7 @@ def main(db_user, db_password, db_host, db_port, db_name):
 
     query_dict = {}
     for table_name in get_all_tables(conn):
-        query = f"SELECT * FROM {table_name}"
+        query = f"SELECT * FROM rep.{table_name}"
         query_dict[table_name] = query
 
     df_list = fetch_data_to_dataframe(conn, query_dict)
